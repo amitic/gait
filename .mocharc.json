@@ -1,0 +1,7 @@
+{
+    "recursive": true,
+    "reporter": "spec",
+    "ignore": [
+        "**/helpers/**"
+    ]
+}

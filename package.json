@@ -1,0 +1,36 @@
+{
+  "name": "gait",
+  "version": "0.4.0",
+  "description": "Preset interval metrics",
+  "main": "index.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/amitic/gait.git"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "scripts": {
+    "test": "nyc mocha",
+    "test-watch": "mocha -w"
+  },
+  "author": "Aleksandar Mitic <amitic@gmail.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/amitic/gait/issues"
+  },
+  "devDependencies": {
+    "chai": "^4.3.6",
+    "chai-eventemitter2": "^0.2.1",
+    "eslint": "^8.13.0",
+    "eslint-config-airbnb-base": "^15.0.0",
+    "eslint-plugin-chai-expect": "^3.0.0",
+    "eslint-plugin-compat": "^4.0.2",
+    "eslint-plugin-import": "^2.26.0",
+    "eslint-plugin-jsdoc": "^39.3.3",
+    "eslint-plugin-mocha": "^10.0.4",
+    "mocha": "^9.2.2",
+    "sinon": "^13.0.2",
+    "sinon-chai": "^3.7.0"
+  }
+}
