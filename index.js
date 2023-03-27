@@ -43,50 +43,72 @@ function gait(options) {
         for (const s of Object.values(series)) {
             s.insert(state, 1, value);
         }
-    }
+    };
+    const resolveState = (...args) => {
+        const state = stateResolver(...args);
+        if (state && !strict && !states.includes(state)) {
+            states.push(state);
+        }
+        return state;
+    };
+    const resolveValue = valueResolver;
     const meter = emitterify(promise => {
+        let returnValue;
         let p = promise;
         const start = Date.now();
         let skipped = false;
         const skip = () => { skipped = true; };
-        const ins = (...args) => {
-            if (!skipped) return insert(...args);
+        const ins = (state, value) => {
+            if (state && strict && !states.includes(state)) {
+                meter.emit('warning', `Unknown series tag '${state}'`);
+                return;
+            }
+            if (!skipped) return insert(state, value);
         };
         if (typeof p === 'function') {
+            returnValue = promise;
             try {
                 p = promise();
             } catch (err) {
                 ins(
-                    stateResolver({ error: err, skip }),
-                    valueResolver({ startTime: start, error: err }),
+                    resolveState({ error: err, skip }),
+                    resolveValue({ startTime: start, error: err }),
                 );
                 throw err;
             }
         }
         if (p && p.then) {
-            p.then(
-                result => ins(
-                    stateResolver({ result, skip }),
-                    valueResolver({ startTime: start, result }),
-                ),
-                err => ins(
-                    stateResolver({ error: err || true, skip }),
-                    valueResolver({ startTime: start, error: err }),
-                ),
+            const result = p.then(
+                result => {
+                    ins(
+                        resolveState({ result, skip }),
+                        resolveValue({ startTime: start, result }),
+                    );
+                    return result;
+                },
+                err => {
+                    ins(
+                        resolveState({ error: err || true, skip }),
+                        resolveValue({ startTime: start, error: err }),
+                    );
+                    throw err;
+                },
             );
+            if (!returnValue) returnValue = result;
         } else {
+            if (!returnValue) returnValue = promise;
             ins(
-                stateResolver({ result: p || 1, skip }),
-                valueResolver({ startTime: start, result: p || 1 }),
+                resolveState({ result: p || 1, skip }),
+                resolveValue({ startTime: start, result: p || 1 }),
             );
         }
-        return promise;
+        return returnValue;
     });
     meter.states = states;
     meter.series = series;
     meter.totalCount = function (state) {
         if (state && strict && !states.includes(state)) {
-            this.emit('warning', `Uknown series tag ${state}`);
+            this.emit('warning', `Unknown series tag '${state}'`);
             return 0;
         }
         if (state) return totalCounts[state];
@@ -94,13 +116,13 @@ function gait(options) {
     };
     meter.totalSum = function (state) {
         if (state && strict && !states.includes(state)) {
-            this.emit('warning', `Uknown series tag ${state}`);
+            this.emit('warning', `Unknown series tag '${state}'`);
             return 0;
         }
         if (state) return totalSums[state];
         return sumValues(totalSums);
     };
-    meter.metrics = function ({ states, metrics, series, formatter = (m, x) => x }) {
+    meter.metrics = function ({ states, metrics, series, formatter = (m, x) => x } = {}) {
         const statesArray = stateless
             ? [null]
             : (states
@@ -125,7 +147,7 @@ function gait(options) {
         if (stateless) return all['_'];
         return all;
     };
-    meter.totals = function ({ ...rest }) {
+    meter.totals = function ({ ...rest } = {}) {
         return this.metrics({ ...rest, states: [] });
     };
     meter.destroy = function () {

@@ -11,7 +11,7 @@ class Series extends EventEmitter {
         super();
         this.interval = interval;
         this.range = range;
-        this.states = states || [];
+        this.states = [];
         this.strict = options?.strict ?? (states && states.length);
         this.precision = options?.precision ?? 2;
         if (!this.range) {
@@ -28,15 +28,8 @@ class Series extends EventEmitter {
         this.sums = {};
         this.mins = {};
         this.maxs = {};
-        for (const s of this.states) {
-            this.countBuckets[s] = [0];
-            this.valueBuckets[s] = [0];
-            this.minBuckets[s] = [null];
-            this.maxBuckets[s] = [null];
-            this.counts[s] = 0;
-            this.sums[s] = 0;
-            this.mins[s] = null;
-            this.maxs[s] = null;
+        for (const s of states || []) {
+            this.addState(s);
         }
         this.timeout = setTimeout(() => this.next(), this.rangeMs - Date.now() % this.rangeMs).unref();
     }
@@ -47,14 +40,31 @@ class Series extends EventEmitter {
     }
 
     insert(state, count = 1, value = 0) {
-        if (this.strict && !this.states.includes(state)) {
-            return this.emit('warning', `Uknown series tag ${state}`);
+        if (!this.states.includes(state)) {
+            if (this.strict) {
+                return this.emit('warning', `Unknown series tag '${state}'`);
+            }
+            this.addState(state);
         }
         const val = round(value, this.precision);
         this.countBuckets[state][0] += count;
         this.valueBuckets[state][0] += val * count;
         this.minBuckets[state][0] = min(val, this.minBuckets[state][0]);
         this.maxBuckets[state][0] = max(val, this.maxBuckets[state][0]);
+    }
+
+    addState(state) {
+        if (!this.states.includes(state)) {
+            this.states.push(state);
+            this.countBuckets[state] = [0];
+            this.valueBuckets[state] = [0];
+            this.minBuckets[state] = [null];
+            this.maxBuckets[state] = [null];
+            this.counts[state] = 0;
+            this.sums[state] = 0;
+            this.mins[state] = null;
+            this.maxs[state] = null;
+        }
     }
 
     addBucket(buckets, aggregate, removal, addition, startValue = 0) {
@@ -99,7 +109,7 @@ class Series extends EventEmitter {
 
     _get(metric, state) {
         if (state && this.strict && !this.states.includes(state)) {
-            this.emit('warning', `Uknown series tag ${state}`);
+            this.emit('warning', `Unknown series tag '${state}'`);
             return null;
         }
         return this[`_get${capitalizeFirst(metric)}`](state);
